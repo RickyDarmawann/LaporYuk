@@ -1,0 +1,1 @@
+"""Package LaporYuk: sistem pelaporan kerusakan fasilitas kampus."""
