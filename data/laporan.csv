@@ -1,0 +1,21 @@
+id,jenis,lokasi,deskripsi,tanggal,status
+LP001,Jalan Berlubang,Gerbang Utama,Lubang besar dekat portal masuk,2026-11-02,Selesai
+LP002,Lampu Mati,Parkiran Barat,Lampu jalan mati sejak seminggu,2026-11-03,Diproses
+LP003,Tempat Sampah Rusak,Kantin Pusat,Tutup tempat sampah patah dan bau,2026-11-03,Menunggu
+LP004,Keran Bocor,Toilet Gedung A,Keran wastafel bocor terus menerus,2026-11-04,Diproses
+LP005,AC Rusak,Ruang Kelas A201,AC tidak dingin dan menetes air,2026-11-05,Menunggu
+LP006,Jalan Berlubang,Jalan Menuju Perpustakaan,Lubang kecil berbahaya untuk motor,2026-11-05,Menunggu
+LP007,Lampu Mati,Koridor Gedung B,Dua lampu koridor lantai 2 mati,2026-11-06,Selesai
+LP008,Kursi Rusak,Ruang Kelas B105,Lima kursi kuliah patah kakinya,2026-11-07,Diproses
+LP009,Pintu Rusak,Laboratorium Komputer,Pintu lab sulit dikunci dari luar,2026-11-08,Menunggu
+LP010,Atap Bocor,Aula Utama,Atap aula bocor saat hujan deras,2026-11-09,Diproses
+LP011,Tempat Sampah Rusak,Taman Kampus,Tempat sampah roda hilang dan miring,2026-11-10,Menunggu
+LP012,Wi-Fi Mati,Perpustakaan,Sinyal Wi-Fi lantai 1 sering putus,2026-11-10,Diproses
+LP013,Lampu Mati,Jalan Belakang Kampus,Jalan gelap karena semua lampu mati,2026-11-11,Menunggu
+LP014,Toilet Tersumbat,Toilet Gedung C,Toilet pria lantai 1 tersumbat,2026-11-12,Selesai
+LP015,Proyektor Rusak,Ruang Kelas C302,Gambar proyektor buram dan berkedip,2026-11-13,Menunggu
+LP016,Jalan Berlubang,Parkiran Timur,Lubang besar menggenang saat hujan,2026-11-14,Diproses
+LP017,Pagar Rusak,Lapangan Olahraga,Pagar samping lapangan bengkok,2026-11-15,Menunggu
+LP018,Keran Bocor,Kantin Pusat,Keran tempat cuci piring macet,2026-11-16,Selesai
+LP019,Kursi Rusak,Perpustakaan,Kursi baca lantai 2 goyang parah,2026-11-17,Menunggu
+LP020,AC Rusak,Laboratorium Komputer,AC lab mati sehingga ruangan panas,2026-11-18,Diproses
