@@ -1,52 +1,84 @@
-"""Titik masuk aplikasi LaporYuk (sementara untuk uji Progress 3)."""
+"""Titik masuk aplikasi LaporYuk (sementara untuk uji Progress 4)."""
 
 import os
+import shutil
 import tempfile
 
-from laporyuk.models import Laporan
-from laporyuk.storage import muat_laporan, simpan_laporan, tambah_laporan
+from laporyuk.services import (
+    LaporanService, cari_linear, filter_laporan,
+    hitung_status, hitung_total, urutkan_bubble,
+)
+from laporyuk.storage import muat_laporan
+
+
+def tampil(daftar, maks=3):
+    """Mencetak maksimal `maks` laporan pertama dari daftar."""
+    for laporan in daftar[:maks]:
+        print(laporan)
 
 
 def main():
-    """Menguji muat data awal, file hilang, file rusak, simpan, dan tambah."""
-    print("== 1. Muat data awal ==")
-    data, peringatan = muat_laporan()
-    print(f"Jumlah laporan: {len(data)}")
-    for laporan in data[:3]:
-        print(laporan)
-    print(f"Jumlah peringatan: {len(peringatan)}")
+    """Menguji searching, sorting, filter, agregat, dan LaporanService."""
+    data, _ = muat_laporan()
 
-    print("\n== 2. File tidak ditemukan ==")
-    data, peringatan = muat_laporan("data/tidak_ada.csv")
-    print(f"Jumlah laporan: {len(data)}")
-    print(peringatan[0])
+    print("== 1. Searching ==")
+    print(f"Cari 'lampu' (semua kolom): {len(cari_linear(data, 'lampu'))} hasil")
+    print(f"Cari 'kantin' (kolom lokasi): "
+          f"{len(cari_linear(data, 'kantin', 'lokasi'))} hasil")
+    print(f"Cari 'xyz': {len(cari_linear(data, 'xyz'))} hasil")
 
-    # Folder sementara agar file uji tidak mengotori data asli
+    print("\n== 2. Sorting ==")
+    print("Tanggal terbaru dulu:")
+    tampil(urutkan_bubble(data, "tanggal", menurun=True))
+    print("Jenis A-Z:")
+    tampil(urutkan_bubble(data, "jenis"))
+
+    print("\n== 3. Filter (**kwargs) ==")
+    menunggu = filter_laporan(data, status="Menunggu")
+    print(f"Status Menunggu: {len(menunggu)} laporan")
+    print(f"Menunggu + Lampu Mati: "
+          f"{len(filter_laporan(data, status='Menunggu', jenis='Lampu Mati'))} laporan")
+    try:
+        filter_laporan(data, warna="merah")
+    except ValueError as e:
+        print(f"ERROR: {e}")
+
+    print("\n== 4. Agregat (*args) ==")
+    print(hitung_status(data))
+    print(hitung_status(data, "Selesai"))
+    diproses = filter_laporan(data, status="Diproses")
+    selesai = filter_laporan(data, status="Selesai")
+    print(f"Total gabungan: {hitung_total(menunggu, diproses, selesai)}")
+
+    print("\n== 5. Class LaporanService ==")
     with tempfile.TemporaryDirectory() as folder:
-        print("\n== 3. File berisi baris rusak ==")
-        path_rusak = os.path.join(folder, "rusak.csv")
-        with open(path_rusak, "w", encoding="utf-8") as f:
-            f.write("id,jenis,lokasi,deskripsi,tanggal,status\n")
-            f.write("LP001,Lampu Mati,Parkiran,Lampu jalan mati total,2026-11-10,Menunggu\n")
-            f.write("LP002,Lampu Mati,Parkiran,Lampu jalan mati total,2026-11-10,Batal\n")
-            f.write("LP003,Lampu Mati,Parkiran,Lampu jalan mati total,10-11-2026,Menunggu\n")
-        data, peringatan = muat_laporan(path_rusak)
-        print(f"Berhasil dimuat: {len(data)}")
-        for p in peringatan:
-            print(p)
+        # Pakai salinan CSV agar data asli tidak berubah saat uji
+        salinan = os.path.join(folder, "salinan.csv")
+        shutil.copy("data/laporan.csv", salinan)
 
-        print("\n== 4. Simpan dan tambah ==")
-        path_baru = os.path.join(folder, "baru.csv")
-        satu = Laporan("LP001", "Keran Bocor", "Toilet A",
-                       "Keran bocor terus menerus", "2026-11-20")
-        dua = Laporan("LP002", "AC Rusak", "Ruang B1",
-                      "AC tidak dingin sama sekali", "2026-11-21")
-        simpan_laporan([satu], path_baru)
-        tambah_laporan(dua, path_baru)
-        data, _ = muat_laporan(path_baru)
-        print(f"Setelah simpan + tambah: {len(data)} laporan")
-        for laporan in data:
-            print(laporan)
+        service = LaporanService(salinan)
+        service.muat()
+        print(f"Setelah muat: {len(service.daftar)}")
+
+        baru = service.tambah("Lampu Mati", "Gerbang Utama",
+                              "Lampu gerbang padam total", "2026-11-22")
+        print(f"Laporan baru: {baru}")
+        print(f"Setelah tambah: {len(service.daftar)}")
+
+        service.ubah_status("LP021", "Diproses")
+        print(f"Status LP021 sekarang: {service.cari_id('LP021').status}")
+
+        service.hapus("LP001")
+        print(f"Setelah hapus LP001: {len(service.daftar)}")
+
+        try:
+            service.ubah_status("LP999", "Selesai")
+        except ValueError as e:
+            print(f"ERROR: {e}")
+
+        ulang = LaporanService(salinan)
+        ulang.muat()
+        print(f"Muat ulang dari file: {len(ulang.daftar)}")
 
 
 if __name__ == "__main__":
