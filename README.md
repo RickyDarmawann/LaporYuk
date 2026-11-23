@@ -7,3 +7,7 @@ tempat sampah rusak, dll). Tugas UAS Pemrograman Terstruktur (Python).
 - [x] Progress 2: Validasi input (validasi.py)
 - [x] Progress 3: File handling CSV (storage.py) dan data awal 20 laporan
 - [x] Progress 4: Searching (linear), sorting (bubble), *args, **kwargs, lambda (services.py)
+- [x] Progress 5: Unit test dengan unittest (tests/test_services.py)
+
+## Menjalankan Unit Test
+    python -m unittest discover -v
