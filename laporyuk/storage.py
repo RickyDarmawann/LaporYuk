@@ -74,10 +74,30 @@ def simpan_laporan(daftar, path=DEFAULT_PATH):
             penulis.writerow(laporan.to_dict())
 
 
+def _perlu_newline(path):
+    """Memeriksa apakah baris terakhir file belum diakhiri newline.
+
+    Args:
+        path (str | Path): Lokasi file CSV.
+
+    Returns:
+        bool: True jika file tidak kosong dan karakter terakhirnya bukan newline.
+    """
+    # Mode 'rb': baca biner agar bisa melihat byte terakhir dengan pasti
+    with open(path, "rb") as f:
+        f.seek(0, 2)              # pindah ke akhir file
+        if f.tell() == 0:         # file kosong
+            return False
+        f.seek(-1, 2)             # mundur 1 byte dari akhir
+        return f.read(1) not in (b"\n", b"\r")
+
+
 def tambah_laporan(laporan, path=DEFAULT_PATH):
     """Menambahkan satu laporan di akhir file tanpa menimpa data lama.
 
     Jika file belum ada, file dibuat baru lengkap dengan header.
+    Jika baris terakhir belum diakhiri newline, newline ditambahkan dulu
+    agar data baru tidak menempel di baris sebelumnya.
 
     Args:
         laporan (Laporan): Laporan yang akan ditambahkan.
@@ -87,8 +107,12 @@ def tambah_laporan(laporan, path=DEFAULT_PATH):
         simpan_laporan([laporan], path)
         return
 
+    perlu_newline = _perlu_newline(path)
+
     # Mode 'a': tambah di akhir file
     with open(path, "a", newline="", encoding="utf-8") as f:
+        if perlu_newline:
+            f.write("\r\n")  # akhiri baris terakhir dulu
         penulis = csv.DictWriter(f, fieldnames=KOLOM)
         penulis.writerow(laporan.to_dict())
 

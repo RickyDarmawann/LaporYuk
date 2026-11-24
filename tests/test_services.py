@@ -151,6 +151,20 @@ class TestServiceDanStorage(unittest.TestCase):
         service.muat()
         return service
 
+    def test_tambah_ke_file_tanpa_newline_di_akhir(self):
+        """Data baru tidak boleh menempel di baris terakhir yang tanpa newline."""
+        with open(self.path, "w", newline="", encoding="utf-8") as f:
+            f.write("id,jenis,lokasi,deskripsi,tanggal,status\n")
+            # sengaja TANPA newline di akhir, seperti file yang diketik manual
+            f.write("LP001,Lampu Mati,Parkiran,Lampu jalan mati total,2026-11-10,Menunggu")
+
+        service = self.muat_ulang()
+        service.tambah("AC Rusak", "Ruang B1", "AC tidak dingin sama sekali", "2026-11-21")
+
+        hasil = self.muat_ulang()
+        self.assertEqual(ambil_id(hasil.daftar), ["LP001", "LP002"])
+        self.assertEqual(hasil.peringatan, [])
+
     def test_tambah_membuat_id_berurutan_dan_tersimpan(self):
         """ID naik otomatis dan data bertahan setelah dimuat ulang dari file."""
         service = LaporanService(self.path)
