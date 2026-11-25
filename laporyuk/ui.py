@@ -13,7 +13,7 @@ from tkinter import messagebox, ttk
 
 from laporyuk.models import STATUS_VALID
 from laporyuk.services import (
-    KOLOM_CARI, KUNCI_URUT, cari_linear, filter_laporan, urutkan_bubble,
+    KOLOM_CARI, KUNCI_URUT, cari_linear, filter_laporan, urutkan_merge,
 )
 
 # Pilihan jenis kerusakan yang umum (pengguna tetap boleh mengetik sendiri)
@@ -277,7 +277,7 @@ class AplikasiLaporYuk(tk.Tk):
         else:
             data = cari_linear(data, self.var_cari.get(), kolom)
 
-        return urutkan_bubble(data, self.kolom_urut, self.menurun)
+        return urutkan_merge(data, self.kolom_urut, self.menurun)
 
     def segarkan(self):
         """Mengisi ulang tabel, judul kolom, status bar, dan grafik."""

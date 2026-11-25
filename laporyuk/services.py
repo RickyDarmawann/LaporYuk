@@ -7,7 +7,7 @@ from datetime import date
 
 from laporyuk import storage
 from laporyuk.models import Laporan, STATUS_VALID
-from laporyuk.validasi import validasi_laporan, validasi_status
+from laporyuk.validasi import validasi_id, validasi_laporan, validasi_status
 
 # Kolom yang boleh dipakai untuk mencari dan memfilter
 KOLOM_CARI = ("id", "jenis", "lokasi", "deskripsi", "tanggal", "status")
@@ -25,6 +25,18 @@ KUNCI_URUT = {
     "status": lambda lap: STATUS_VALID.index(lap.status),
 }
 
+def _periksa_kolom(nama_kolom):
+    """Memastikan semua nama kolom dikenal (dipakai cari dan filter).
+
+    Args:
+        nama_kolom (iterable[str]): Nama-nama kolom yang diperiksa.
+
+    Raises:
+        ValueError: Jika ada nama kolom yang tidak ada di KOLOM_CARI.
+    """
+    for nama in nama_kolom:
+        if nama not in KOLOM_CARI:
+            raise ValueError(f"Kolom '{nama}' tidak dikenal")
 
 def cari_linear(daftar, kata_kunci, *kolom):
     """Mencari laporan yang memuat kata kunci (Linear Search).
@@ -46,9 +58,7 @@ def cari_linear(daftar, kata_kunci, *kolom):
     """
     kata = kata_kunci.strip().lower()
     kolom = kolom or KOLOM_CARI  # *args: kosong berarti pakai semua kolom
-    for nama in kolom:
-        if nama not in KOLOM_CARI:
-            raise ValueError(f"Kolom '{nama}' tidak dikenal")
+    _periksa_kolom(kolom)
 
     hasil = []
     for laporan in daftar:
@@ -59,44 +69,107 @@ def cari_linear(daftar, kata_kunci, *kolom):
     return hasil
 
 
-def urutkan_bubble(daftar, kolom, menurun=False):
-    """Mengurutkan laporan berdasarkan satu kolom (Bubble Sort).
+def urutkan_merge(daftar, kolom, menurun=False):
+    """Mengurutkan laporan berdasarkan satu kolom (Merge Sort).
 
-    Dua elemen bersebelahan dibandingkan lalu ditukar jika urutannya
-    salah, diulang sampai tidak ada lagi pertukaran. Kompleksitas O(n^2).
-    Data asli tidak diubah, fungsi mengembalikan salinan yang terurut.
+    Daftar dibelah dua berulang kali sampai tinggal satu elemen, lalu
+    potongan yang sudah terurut digabung kembali. Kompleksitas O(n log n).
+    Sifatnya stabil: elemen bernilai sama tetap dalam urutan aslinya.
+    Data asli tidak diubah; fungsi mengembalikan list baru.
 
     Args:
         daftar (list[Laporan]): Data yang diurutkan.
         kolom (str): Salah satu kunci di KUNCI_URUT.
-        menurun (bool): True untuk urutan besar ke kecil (Z-A / terbaru).
+        menurun (bool): True untuk urutan besar ke kecil.
 
     Returns:
-        list[Laporan]: Salinan daftar yang sudah terurut.
+        list[Laporan]: Daftar baru yang sudah terurut.
 
     Raises:
         ValueError: Jika kolom tidak bisa dipakai untuk mengurutkan.
     """
     if kolom not in KUNCI_URUT:
         raise ValueError(f"Kolom '{kolom}' tidak bisa dipakai untuk mengurutkan")
+    return _merge_sort(list(daftar), KUNCI_URUT[kolom], menurun)
 
-    kunci = KUNCI_URUT[kolom]
-    hasil = list(daftar)  # salinan, data asli aman
-    n = len(hasil)
 
-    for i in range(n - 1):
-        ada_tukar = False
-        # Setelah tiap putaran, elemen terbesar "mengapung" ke ujung kanan
-        for j in range(n - 1 - i):
-            kiri, kanan = kunci(hasil[j]), kunci(hasil[j + 1])
-            salah_urut = kiri < kanan if menurun else kiri > kanan
-            if salah_urut:
-                hasil[j], hasil[j + 1] = hasil[j + 1], hasil[j]
-                ada_tukar = True
-        if not ada_tukar:
-            break  # sudah terurut, berhenti lebih awal
+def _merge_sort(data, kunci, menurun):
+    """Bagian rekursif Merge Sort: belah dua, urutkan, lalu gabung.
+
+    Args:
+        data (list[Laporan]): Potongan data yang diurutkan.
+        kunci (callable): Fungsi pengambil nilai pengurutan.
+        menurun (bool): Arah urutan.
+
+    Returns:
+        list[Laporan]: Potongan data yang sudah terurut.
+    """
+    if len(data) <= 1:  # basis rekursi: 0 atau 1 elemen sudah terurut
+        return data
+    tengah = len(data) // 2
+    kiri = _merge_sort(data[:tengah], kunci, menurun)
+    kanan = _merge_sort(data[tengah:], kunci, menurun)
+    return _gabung(kiri, kanan, kunci, menurun)
+
+
+def _gabung(kiri, kanan, kunci, menurun):
+    """Menggabungkan dua list terurut menjadi satu list terurut.
+
+    Args:
+        kiri (list[Laporan]): Potongan kiri (terurut).
+        kanan (list[Laporan]): Potongan kanan (terurut).
+        kunci (callable): Fungsi pengambil nilai pengurutan.
+        menurun (bool): Arah urutan.
+
+    Returns:
+        list[Laporan]: Gabungan terurut.
+    """
+    hasil = []
+    i = j = 0
+    while i < len(kiri) and j < len(kanan):
+        a, b = kunci(kiri[i]), kunci(kanan[j])
+        # Tanda sama dengan (<=, >=) menjaga kestabilan: yang kiri didahulukan
+        ambil_kiri = a >= b if menurun else a <= b
+        if ambil_kiri:
+            hasil.append(kiri[i])
+            i += 1
+        else:
+            hasil.append(kanan[j])
+            j += 1
+    hasil.extend(kiri[i:])   # sisa salah satu potongan
+    hasil.extend(kanan[j:])
     return hasil
 
+def cari_biner_id(daftar_terurut, id_laporan):
+    """Mencari laporan berdasarkan ID persis (Binary Search).
+
+    Syarat: daftar harus sudah terurut menaik berdasarkan angka ID.
+    Setiap langkah membuang separuh data, sehingga O(log n).
+
+    Args:
+        daftar_terurut (list[Laporan]): Data terurut menurut ID.
+        id_laporan (str): ID yang dicari, contoh "LP005".
+
+    Returns:
+        Laporan | None: Laporan yang ditemukan, atau None.
+    """
+    try:
+        validasi_id(id_laporan)
+    except ValueError:
+        return None  # format ID salah pasti tidak ada di data
+    target = int(id_laporan[2:])
+
+    kiri, kanan = 0, len(daftar_terurut) - 1
+    while kiri <= kanan:
+        tengah = (kiri + kanan) // 2
+        nilai = int(daftar_terurut[tengah].id[2:])
+        if nilai == target:
+            return daftar_terurut[tengah]
+        if nilai < target:
+            kiri = tengah + 1    # buang separuh kiri
+        else:
+            kanan = tengah - 1   # buang separuh kanan
+    return None
 
 def filter_laporan(daftar, **kriteria):
     """Menyaring laporan dengan kriteria yang jumlahnya bebas.
@@ -114,9 +187,7 @@ def filter_laporan(daftar, **kriteria):
     Raises:
         ValueError: Jika ada nama kolom yang tidak dikenal.
     """
-    for nama in kriteria:
-        if nama not in KOLOM_CARI:
-            raise ValueError(f"Kolom '{nama}' tidak dikenal")
+    _periksa_kolom(kriteria)  # iterasi dict menghasilkan nama kolomnya
 
     # lambda dipakai sebagai syarat untuk filter()
     return list(filter(
@@ -179,8 +250,12 @@ class LaporanService:
         self.peringatan = []
 
     def muat(self):
-        """Memuat data dari file CSV ke memori."""
-        self.daftar, self.peringatan = storage.muat_laporan(self.path)
+        """Memuat data dari file CSV, lalu mengurutkannya menurut ID.
+
+        Data harus terurut agar cari_id() bisa memakai Binary Search.
+        """
+        daftar, self.peringatan = storage.muat_laporan(self.path)
+        self.daftar = urutkan_merge(daftar, "id")
 
     def buat_id_baru(self):
         """Membuat ID berikutnya, contoh LP021 jika terbesar saat ini LP020.
@@ -194,15 +269,15 @@ class LaporanService:
         return f"LP{terbesar + 1:03d}"
 
     def cari_id(self, id_laporan):
-        """Mencari satu laporan berdasarkan ID persis.
+        """Mencari satu laporan berdasarkan ID persis (Binary Search).
+
+        ID baru selalu lebih besar dari yang ada, jadi daftar tetap terurut
+        setelah tambah(), ubah_status(), dan hapus().
 
         Returns:
             Laporan | None: Laporan yang ditemukan, atau None.
         """
-        for laporan in self.daftar:
-            if laporan.id == id_laporan:
-                return laporan
-        return None
+        return cari_biner_id(self.daftar, id_laporan) 
 
     def tambah(self, jenis, lokasi, deskripsi, tanggal=None):
         """Membuat laporan baru (status awal Menunggu) dan menyimpannya.
@@ -258,8 +333,8 @@ class LaporanService:
         return cari_linear(self.daftar, kata_kunci, *kolom)
 
     def urutkan(self, kolom, menurun=False):
-        """Pembungkus urutkan_bubble() untuk data milik service ini."""
-        return urutkan_bubble(self.daftar, kolom, menurun)
+        """Pembungkus urutkan_merge() untuk data milik service ini."""
+        return urutkan_merge(self.daftar, kolom, menurun)
 
     def filter(self, **kriteria):
         """Pembungkus filter_laporan() untuk data milik service ini."""

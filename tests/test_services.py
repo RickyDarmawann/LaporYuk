@@ -11,8 +11,8 @@ import unittest
 
 from laporyuk.models import Laporan
 from laporyuk.services import (
-    LaporanService, cari_linear, filter_laporan,
-    hitung_status, hitung_total, urutkan_bubble,
+    LaporanService, cari_biner_id, cari_linear, filter_laporan,
+    hitung_status, hitung_total, urutkan_merge,
 )
 from laporyuk.storage import muat_laporan
 from laporyuk.validasi import validasi_laporan
@@ -66,7 +66,7 @@ class TestPencarian(unittest.TestCase):
 
 
 class TestPengurutan(unittest.TestCase):
-    """Menguji fungsi urutkan_bubble."""
+    """Menguji fungsi urutkan_merge."""
 
     def setUp(self):
         """Siapkan data uji baru."""
@@ -74,27 +74,42 @@ class TestPengurutan(unittest.TestCase):
 
     def test_urut_tanggal_naik_dan_turun(self):
         """Tanggal terlama dulu (naik), lalu terbaru dulu (turun)."""
-        naik = urutkan_bubble(self.data, "tanggal")
-        turun = urutkan_bubble(self.data, "tanggal", menurun=True)
+        naik = urutkan_merge(self.data, "tanggal")
+        turun = urutkan_merge(self.data, "tanggal", menurun=True)
         self.assertEqual(ambil_id(naik), ["LP002", "LP003", "LP001", "LP010"])
         self.assertEqual(ambil_id(turun), ["LP010", "LP001", "LP003", "LP002"])
 
     def test_urut_status_sesuai_alur_kerja(self):
         """Status urut Menunggu -> Diproses -> Selesai, bukan urut abjad."""
-        hasil = urutkan_bubble(self.data, "status")
+        hasil = urutkan_merge(self.data, "status")
         self.assertEqual(ambil_id(hasil), ["LP001", "LP003", "LP010", "LP002"])
 
     def test_urut_tidak_mengubah_data_asli(self):
         """Fungsi mengembalikan salinan; list asli tetap sama."""
         sebelum = ambil_id(self.data)
-        urutkan_bubble(self.data, "tanggal")
+        urutkan_merge(self.data, "tanggal")
         self.assertEqual(ambil_id(self.data), sebelum)
 
     def test_urut_kolom_salah(self):
         """Kolom yang tidak bisa diurutkan memicu ValueError."""
         with self.assertRaises(ValueError):
-            urutkan_bubble(self.data, "deskripsi")
+            urutkan_merge(self.data, "deskripsi")
 
+    def test_urut_stabil(self):
+        """Nilai sama tetap dalam urutan asli (LP001 sebelum LP003)."""
+        naik = urutkan_merge(self.data, "jenis")
+        turun = urutkan_merge(self.data, "jenis", menurun=True)
+        self.assertEqual(ambil_id(naik), ["LP002", "LP010", "LP001", "LP003"])
+        self.assertEqual(ambil_id(turun), ["LP001", "LP003", "LP010", "LP002"])
+
+    def test_cari_biner_id(self):
+        """Binary search menemukan ID yang ada; ID tidak ada/salah -> None."""
+        terurut = urutkan_merge(self.data, "id")  # LP001, LP002, LP003, LP010
+        self.assertEqual(cari_biner_id(terurut, "LP010").id, "LP010")
+        self.assertEqual(cari_biner_id(terurut, "LP001").id, "LP001")
+        self.assertIsNone(cari_biner_id(terurut, "LP999"))
+        self.assertIsNone(cari_biner_id(terurut, "ABC"))
+        self.assertIsNone(cari_biner_id([], "LP001"))
 
 class TestOlahData(unittest.TestCase):
     """Menguji filter (**kwargs), agregat (*args), dan validasi."""
@@ -210,6 +225,17 @@ class TestServiceDanStorage(unittest.TestCase):
         data, peringatan = muat_laporan(self.path)
         self.assertEqual(ambil_id(data), ["LP001"])
         self.assertEqual(len(peringatan), 1)
+
+    def test_muat_mengurutkan_id_agar_binary_search_valid(self):
+        """File dengan ID tidak berurutan tetap bisa dicari lewat cari_id."""
+        with open(self.path, "w", newline="", encoding="utf-8") as f:
+            f.write("id,jenis,lokasi,deskripsi,tanggal,status\n")
+            f.write("LP003,AC Rusak,Ruang B1,AC tidak dingin sama sekali,2026-11-10,Menunggu\n")
+            f.write("LP001,Lampu Mati,Parkiran,Lampu jalan mati total,2026-11-10,Menunggu\n")
+            f.write("LP002,Keran Bocor,Toilet A,Keran bocor terus menerus,2026-11-10,Selesai\n")
+        service = self.muat_ulang()
+        self.assertEqual(ambil_id(service.daftar), ["LP001", "LP002", "LP003"])
+        self.assertEqual(service.cari_id("LP003").jenis, "AC Rusak")
 
 
 if __name__ == "__main__":
